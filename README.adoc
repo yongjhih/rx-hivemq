@@ -45,7 +45,6 @@ The plugin is documented with javadoc which explains what's going on. Please don
 . Now HiveMQ should be running *with* your plugin installed.
 . Connect with a {hivemq-blog-tools}[MQTT client] of your choice and publish something. You should see some log output.
 
-
 === Next steps
 
 Awesome, you got your first HiveMQ plugin working. Now grab a coffee and prepare for the next steps:
@@ -58,3 +57,17 @@ Awesome, you got your first HiveMQ plugin working. Now grab a coffee and prepare
 === Need help?
 
 If you encounter any problems, we are happy to help. The best place to get in contact is our {hivemq-support}[support].
+
+=== Build
+
+gradle:
+
+```sh
+./gradlew assemble
+```
+
+maven:
+
+```sh
+./mvnw install
+```
