@@ -1,7 +1,24 @@
-/target/
-/.idea/libraries/
-/.idea/cssxfire.xml
-/.idea/workspace.xml
-.DS_Store
-/.idea/
-/hivemq-hello-world-plugin.iml
+.project
+.classpath
+.settings/
+bin/
+gen/
+
+# git
+*.orig
+
+# vim
+*.sw*
+*~
+
+build/
+.gradle/
+.idea/
+.apt_generated/
+*.iml
+
+local.properties
+
+.zip/
+
+target/

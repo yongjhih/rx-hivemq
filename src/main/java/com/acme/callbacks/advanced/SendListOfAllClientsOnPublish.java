@@ -36,7 +36,7 @@ import java.util.Set;
  * This class implements the {@link com.hivemq.spi.callback.events.OnPublishReceivedCallback}, which is triggered everytime
  * a new message is published to the broker. This callback enables a custom handling of a
  * MQTT message, for acme saving to a database.
- * <p/>
+ *
  * Addtionally this callback shows how the PublishService can be used to republish messages on other topics.
  *
  * @author Christian Götz
