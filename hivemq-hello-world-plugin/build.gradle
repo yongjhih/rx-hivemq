@@ -1,0 +1,65 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath 'me.tatarka:gradle-retrolambda:3.2.5'
+    }
+}
+
+apply plugin: 'java'
+
+sourceCompatibility = JavaVersion.VERSION_1_8
+targetCompatibility = JavaVersion.VERSION_1_8
+
+apply plugin: 'me.tatarka.retrolambda'
+
+retrolambda {
+    jvmArgs '-noverify'
+    jdk System.getenv("JAVA8_HOME")
+    oldJdk System.getenv("JAVA7_HOME")
+    javaVersion JavaVersion.VERSION_1_7
+}
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'com.hivemq:hivemq-spi:3.1.0'
+    compile 'com.google.guava:guava:22.0'
+    compile 'org.slf4j:slf4j-log4j12:+'
+    //compile 'ch.qos.logback:logback-classic:+'
+    //compile 'ch.qos.logback:logback-core:+'
+    //compile 'javax.ws.rs:javax.ws.rs-api:+'
+    //compile 'javax.servlet:javax.servlet-api:+'
+    //compile 'javax.servlet:javax.javax-servlet-api:+'
+    testCompile 'junit:junit:3.8.2'
+    //testCompile 'org.testng:testng:6.8.17'
+}
+
+tasks.withType(Test) {
+  testLogging {
+    exceptionFormat "full"
+    events "passed", "skipped", "failed", "standardOut", "standardError"
+    showStandardStreams = true
+  }
+}
+
+apply from: 'javadoc.gradle'
+
+apply plugin: 'jacoco'
+
+jacocoTestReport {
+    sourceDirectories = files(sourceSets.main.allSource.srcDirs)
+    classDirectories =  files(sourceSets.main.output)
+    executionData = files(jacocoTestReport.executionData)
+    reports {
+        xml.enabled = true // coveralls needed
+        html.enabled = true
+    }
+}
+
+tasks.jacocoTestReport {
+    dependsOn 'test'
+}
