@@ -1,1 +1,2 @@
 include ':hivemq-hello-world-plugin'
+include ':rx-hivemq'

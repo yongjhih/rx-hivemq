@@ -1,0 +1,24 @@
+apply plugin: 'maven'
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    from sourceSets.main.allJava
+}
+
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives sourcesJar
+    archives javadocJar
+}
+
+javadoc {
+    options {
+        failOnError = false
+        linkSource true
+    }
+    exclude '../src/main/java/java/util/Random.java', '../src/main/java/build/IgnoreJava8API.java'
+}

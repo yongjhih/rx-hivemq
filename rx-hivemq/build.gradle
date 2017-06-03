@@ -1,0 +1,56 @@
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+    }
+}
+
+apply plugin: 'java'
+
+sourceCompatibility = JavaVersion.VERSION_1_7
+targetCompatibility = JavaVersion.VERSION_1_7
+
+repositories {
+    jcenter()
+}
+
+dependencies {
+    compile 'com.hivemq:hivemq-spi:3.1.0'
+    compile  'io.reactivex.rxjava2:rxjava:2.0.8'
+    //compile 'com.google.guava:guava:22.0'
+    compile 'com.google.inject:guice:4.1.0'
+    //compile 'ch.qos.logback:logback-classic:+'
+    //compile 'ch.qos.logback:logback-core:+'
+    //compile 'javax.ws.rs:javax.ws.rs-api:+'
+    //compile 'javax.servlet:javax.servlet-api:+'
+    //compile 'javax.servlet:javax.javax-servlet-api:+'
+    testCompile 'junit:junit:4.2'
+    //testCompile 'org.testng:testng:6.8.17'
+}
+
+tasks.withType(Test) {
+  testLogging {
+    exceptionFormat "full"
+    events "passed", "skipped", "failed", "standardOut", "standardError"
+    showStandardStreams = true
+  }
+}
+
+apply from: 'javadoc.gradle'
+
+apply plugin: 'jacoco'
+
+jacocoTestReport {
+    sourceDirectories = files(sourceSets.main.allSource.srcDirs)
+    classDirectories =  files(sourceSets.main.output)
+    executionData = files(jacocoTestReport.executionData)
+    reports {
+        xml.enabled = true // coveralls needed
+        html.enabled = true
+    }
+}
+
+tasks.jacocoTestReport {
+    dependsOn 'test'
+}
