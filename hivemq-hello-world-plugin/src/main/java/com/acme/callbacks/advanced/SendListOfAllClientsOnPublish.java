@@ -32,6 +32,10 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 
+import io.reactivex.annotations.NonNull;
+import io.reactivex.functions.Consumer;
+import rx.hivemq.RxHiveMQ;
+
 /**
  * This class implements the {@link com.hivemq.spi.callback.events.OnPublishReceivedCallback}, which is triggered everytime
  * a new message is published to the broker. This callback enables a custom handling of a
@@ -41,7 +45,7 @@ import java.util.Set;
  *
  * @author Christian Götz
  */
-public class SendListOfAllClientsOnPublish implements OnPublishReceivedCallback {
+public class SendListOfAllClientsOnPublish implements Consumer<RxHiveMQ.Pair<PUBLISH, ClientData>> {
 
     Logger logger = LoggerFactory.getLogger(SendListOfAllClientsOnPublish.class);
 
@@ -64,7 +68,6 @@ public class SendListOfAllClientsOnPublish implements OnPublishReceivedCallback 
      * @throws com.hivemq.spi.callback.exception.OnPublishReceivedException When the exception is thrown, the publish is not
      *                                                                      accepted and will NOT be delivered to the subscribing clients.
      */
-    @Override
     public void onPublishReceived(final PUBLISH publish, final ClientData clientData) throws OnPublishReceivedException {
         if (publish.getTopic().equals("fetch/all/clients")) {
 
@@ -103,22 +106,16 @@ public class SendListOfAllClientsOnPublish implements OnPublishReceivedCallback 
     }
 
     /**
-     * The priority is used when more than one OnConnectCallback is implemented to determine the order.
-     * If there is only one callback, which implements a certain interface, the priority has no effect.
-     *
-     * @return callback priority
-     */
-    @Override
-    public int priority() {
-        return CallbackPriority.MEDIUM;
-    }
-
-    /**
      * Copy and redirect a PUBLISH message to a new topic
      */
     private void redirectPublish(String newTopic, PUBLISH publish) {
         PUBLISH copy = PUBLISH.copy(publish);
         copy.setTopic(newTopic);
         publishService.publish(copy);
+    }
+
+    @Override
+    public void accept(@NonNull RxHiveMQ.Pair<PUBLISH, ClientData> pair) throws Exception {
+        onPublishReceived(pair.left, pair.right);
     }
 }

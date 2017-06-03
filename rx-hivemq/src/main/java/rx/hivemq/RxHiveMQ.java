@@ -21,6 +21,7 @@ import com.hivemq.spi.callback.events.*;
 import com.hivemq.spi.callback.events.broker.OnBrokerStart;
 import com.hivemq.spi.callback.exception.*;
 import com.hivemq.spi.callback.registry.CallbackRegistry;
+import com.hivemq.spi.callback.schedule.ScheduledCallback;
 import com.hivemq.spi.message.CONNECT;
 import com.hivemq.spi.message.PUBLISH;
 import com.hivemq.spi.security.ClientData;
@@ -78,6 +79,11 @@ public class RxHiveMQ {
     }
     */
 
+    /**
+     * @param callbackRegistry
+     * @param priority
+     * @return
+     */
     @NonNull
     @CheckReturnValue
     public static Completable brokerStarts(@NonNull final CallbackRegistry callbackRegistry, final int priority) {
@@ -110,6 +116,11 @@ public class RxHiveMQ {
         });
     }
 
+    /**
+     * @param <L>
+     * @param <R>
+     */
+    // TODO Move out
     public static class Pair<L, R> {
         public L left;
         public R right;
@@ -120,6 +131,11 @@ public class RxHiveMQ {
         }
     }
 
+    /**
+     * @param callbackRegistry
+     * @param priority
+     * @return
+     */
     @NonNull
     @CheckReturnValue
     public static Observable<Pair<PUBLISH, ClientData>>
@@ -155,6 +171,12 @@ public class RxHiveMQ {
             }
         });
     }
+
+    /**
+     * @param callbackRegistry
+     * @param priority
+     * @return
+     */
     @NonNull
     @CheckReturnValue
     public static Observable<Pair<CONNECT, ClientData>>
@@ -190,16 +212,40 @@ public class RxHiveMQ {
         });
     }
 
-    /*
-    ScheduledCallback {
-        @Override
-        public void execute() {
-        }
+    /**
+     * @param callbackRegistry
+     * @param cronExpression
+     * @return
+     */
+    @NonNull
+    @CheckReturnValue
+    public static Observable<String>
+        scheduleds(@NonNull final CallbackRegistry callbackRegistry,
+                   @NonNull final String cronExpression) {
+        return Observable.create(new ObservableOnSubscribe<String>() {
+            @Override
+            public void subscribe(@NonNull final ObservableEmitter<String> emitter) throws Exception {
+                final ScheduledCallback callback = new ScheduledCallback() {
+                    @Override
+                    public void execute() {
+                        emitter.onNext(cronExpression);
+                    }
 
-        @Override
-        public String cronExpression() {
-            //return "0/5 * * * * ?";
-        }
+                    @Override
+                    public String cronExpression() {
+                        return cronExpression;
+                    }
+                };
+
+                emitter.setCancellable(new Cancellable() {
+                    @Override
+                    public void cancel() throws Exception {
+                        callbackRegistry.removeCallback(callback);
+                    }
+                });
+
+                callbackRegistry.addCallback(callback);
+            }
+        });
     }
-    */
 }

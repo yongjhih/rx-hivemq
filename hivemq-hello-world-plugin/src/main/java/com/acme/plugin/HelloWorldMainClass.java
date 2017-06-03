@@ -1,4 +1,5 @@
 /*
+ * Copyright 2017 Andrew Chen
  * Copyright 2015 dc-square GmbH
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -19,6 +20,10 @@ package com.acme.plugin;
 import com.acme.callbacks.*;
 import com.acme.callbacks.advanced.*;
 import com.acme.configuration.MyConfiguration;
+import com.google.common.base.Charsets;
+import com.google.common.util.concurrent.FutureCallback;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.hivemq.spi.PluginEntryPoint;
 import com.hivemq.spi.callback.CallbackPriority;
 import com.hivemq.spi.callback.registry.CallbackRegistry;
@@ -26,11 +31,15 @@ import com.hivemq.spi.message.CONNECT;
 import com.hivemq.spi.message.PUBLISH;
 import com.hivemq.spi.message.QoS;
 import com.hivemq.spi.message.RetainedMessage;
+import com.hivemq.spi.message.Topic;
 import com.hivemq.spi.security.ClientData;
+import com.hivemq.spi.services.AsyncSubscriptionStore;
 import com.hivemq.spi.services.BlockingRetainedMessageStore;
 import com.hivemq.spi.services.RetainedMessageStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Set;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -43,7 +52,7 @@ import rx.hivemq.RxHiveMQ;
 /**
  * This is the main class of the plugin, which is instanciated during the HiveMQ start up process.
  *
- * @author Christian Götz
+ * @author Christian Götz, Andrew Chen
  */
 public class HelloWorldMainClass extends PluginEntryPoint {
 
@@ -51,12 +60,18 @@ public class HelloWorldMainClass extends PluginEntryPoint {
 
     private final BlockingRetainedMessageStore retainedMessageStore;
     private final MyConfiguration myConfiguration;
+    private final AsyncSubscriptionStore subscriptionStore;
+    private final SendListOfAllClientsOnPublish sendListOfAllClientsOnPublish;
 
     @Inject
     public HelloWorldMainClass(final BlockingRetainedMessageStore retainedMessageStore,
-                               final MyConfiguration myConfiguration) {
+                               final MyConfiguration myConfiguration,
+                               final AsyncSubscriptionStore subscriptionStore,
+                               final SendListOfAllClientsOnPublish sendListOfAllClientsOnPublish) {
         this.retainedMessageStore = retainedMessageStore;
         this.myConfiguration = myConfiguration;
+        this.subscriptionStore = subscriptionStore;
+        this.sendListOfAllClientsOnPublish = sendListOfAllClientsOnPublish;
     }
 
     /**
@@ -65,7 +80,6 @@ public class HelloWorldMainClass extends PluginEntryPoint {
      */
     @PostConstruct
     public void postConstruct() {
-
         final CallbackRegistry callbackRegistry = getCallbackRegistry();
 
         RxHiveMQ.brokerStarts(callbackRegistry, CallbackPriority.MEDIUM).subscribe(new Action() {
@@ -74,25 +88,84 @@ public class HelloWorldMainClass extends PluginEntryPoint {
                 log.info("Property from property file is: " + myConfiguration.getMyProperty());
             }
         });
-        RxHiveMQ.clientConnects(callbackRegistry, CallbackPriority.MEDIUM).subscribe(new Consumer<RxHiveMQ.Pair<CONNECT, ClientData>>() {
+        RxHiveMQ.clientConnects(callbackRegistry, CallbackPriority.MEDIUM).subscribe(
+                new Consumer<RxHiveMQ.Pair<CONNECT, ClientData>>() {
             @Override
-            public void accept(@NonNull RxHiveMQ.Pair<CONNECT, ClientData> connectClientDataPair) throws Exception {
-                log.info("Client {} is connecting", connectClientDataPair.right.getClientId());
+            public void accept(@NonNull final RxHiveMQ.Pair<CONNECT, ClientData> pair)
+                    throws Exception {
+                log.info("Client {} is connecting", pair.right.getClientId());
             }
         });
-        RxHiveMQ.publishReceiveds(callbackRegistry, CallbackPriority.MEDIUM).subscribe(new Consumer<RxHiveMQ.Pair<PUBLISH, ClientData>>() {
+        RxHiveMQ.publishReceiveds(callbackRegistry, CallbackPriority.MEDIUM).subscribe(
+                new Consumer<RxHiveMQ.Pair<PUBLISH, ClientData>>() {
+                    @Override
+                    public void accept(@NonNull final RxHiveMQ.Pair<PUBLISH, ClientData> pair)
+                            throws Exception {
+                        log.info("Client " + pair.right.getClientId() + " sent a message to topic "
+                                + pair.left.getTopic() + ": "
+                                + new String(pair.left.getPayload(), Charsets.UTF_8));
+                    }
+                });
+        RxHiveMQ.scheduleds(callbackRegistry, "0/5 * * * * ?").subscribe(
+                new Consumer<String>() {
+                    @Override
+                    public void accept(@NonNull final String text)
+                            throws Exception {
+                        log.info("Scheduled Callback is doing maintenance!");
+                    }
+                });
+        RxHiveMQ.scheduleds(callbackRegistry, "0/40 * * * * ?").subscribe(
+                new Consumer<String>() {
             @Override
-            public void accept(@NonNull RxHiveMQ.Pair<PUBLISH, ClientData> connectClientDataPair) throws Exception {
-                log.info("Client {} is connecting", connectClientDataPair.right.getClientId());
+            public void accept(@NonNull final String text)
+                    throws Exception {
+                final Set<RetainedMessage> retainedMessages = retainedMessageStore.getRetainedMessages();
+                for (final RetainedMessage retainedMessage : retainedMessages) {
+                    if (retainedMessage != null) {
+                        retainedMessageStore.remove(retainedMessage.getTopic());
+                    }
+                }
+                log.info("Scheduled Callback is doing maintenance!");
             }
         });
-        /*
-        callbackRegistry.addCallback(publishReceived);
-        callbackRegistry.addCallback(simpleScheduledCallback);
-        callbackRegistry.addCallback(scheduledClearRetainedCallback);
-        callbackRegistry.addCallback(addSubscriptionOnClientConnect);
-        callbackRegistry.addCallback(sendListOfAllClientsOnPublish);
-        */
+        RxHiveMQ.clientConnects(callbackRegistry, CallbackPriority.MEDIUM).subscribe(
+                new Consumer<RxHiveMQ.Pair<CONNECT, ClientData>>() {
+                    @Override
+                    public void accept(@NonNull final RxHiveMQ.Pair<CONNECT, ClientData> pair)
+                            throws Exception {
+                        final String clientId = pair.right.getClientId();
+
+                        log.info("Client {} is connecting", clientId);
+
+                        // Adding a subscription without automatically for the client
+                        addClientToTopic(clientId, "devices/" + clientId + "/sensor");
+                    }
+
+                    /**
+                     * Add a Subscription for a certain client
+                     */
+                    private void addClientToTopic(final String clientId, final String topic) {
+                        //The AsyncSubscriptionStore returns a ListenableFuture object
+                        final ListenableFuture<Void> adSubscriptionFuture =
+                                subscriptionStore.addSubscription(clientId,
+                                        new Topic(topic, QoS.valueOf(0)));
+
+                        //Register callbacks, one for success and one for failure
+                        Futures.addCallback(adSubscriptionFuture, new FutureCallback<Void>() {
+                            @Override
+                            public void onSuccess(Void result) {
+                                log.info("Added subscription to {} for client {}", topic, clientId);
+                            }
+
+                            @Override
+                            public void onFailure(Throwable t) {
+                                log.error("Failed to add subscription to {} for client {} because of {}", topic, clientId, t.getCause());
+                            }
+                        });
+                    }
+                });
+        RxHiveMQ.publishReceiveds(callbackRegistry, CallbackPriority.MEDIUM)
+                .subscribe(sendListOfAllClientsOnPublish);
 
         addRetainedMessage("/default", "Hello World.");
     }
@@ -102,7 +175,9 @@ public class HelloWorldMainClass extends PluginEntryPoint {
      */
     public void addRetainedMessage(String topic, String message) {
 
-        if (!retainedMessageStore.contains(topic))
-            retainedMessageStore.addOrReplace(new RetainedMessage(topic, message.getBytes(), QoS.valueOf(1)));
+        if (!retainedMessageStore.contains(topic)) {
+            retainedMessageStore.addOrReplace(
+                    new RetainedMessage(topic, message.getBytes(), QoS.valueOf(1)));
+        }
     }
 }
