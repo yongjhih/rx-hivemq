@@ -22,14 +22,19 @@ import com.hivemq.spi.callback.events.broker.OnBrokerStart;
 import com.hivemq.spi.callback.exception.*;
 import com.hivemq.spi.callback.registry.CallbackRegistry;
 import com.hivemq.spi.message.CONNECT;
+import com.hivemq.spi.message.PUBLISH;
 import com.hivemq.spi.security.ClientData;
 
 import io.reactivex.Completable;
 import io.reactivex.CompletableEmitter;
 import io.reactivex.CompletableOnSubscribe;
+import io.reactivex.Observable;
+import io.reactivex.ObservableEmitter;
+import io.reactivex.ObservableOnSubscribe;
 import io.reactivex.Single;
 import io.reactivex.annotations.CheckReturnValue;
 import io.reactivex.annotations.NonNull;
+import io.reactivex.functions.BiConsumer;
 import io.reactivex.functions.Cancellable;
 
 /**
@@ -64,15 +69,18 @@ import io.reactivex.functions.Cancellable;
  * OnBrokerStart
  */
 public class RxHiveMQ {
+    /*
     @NonNull
     @CheckReturnValue
+    @Deprecated
     public static Completable brokerStarts(final CallbackRegistry callbackRegistry) {
         return brokerStarts(callbackRegistry, CallbackPriority.MEDIUM);
     }
+    */
 
     @NonNull
     @CheckReturnValue
-    public static Completable brokerStarts(final CallbackRegistry callbackRegistry, final int priority) {
+    public static Completable brokerStarts(@NonNull final CallbackRegistry callbackRegistry, final int priority) {
         return Completable.create(new CompletableOnSubscribe() {
             @Override
             public void subscribe(@NonNull final CompletableEmitter emitter) throws Exception {
@@ -101,4 +109,97 @@ public class RxHiveMQ {
             }
         });
     }
+
+    public static class Pair<L, R> {
+        public L left;
+        public R right;
+
+        Pair(L left, R right) {
+            this.left = left;
+            this.right = right;
+        }
+    }
+
+    @NonNull
+    @CheckReturnValue
+    public static Observable<Pair<PUBLISH, ClientData>>
+        publishReceiveds(@NonNull final CallbackRegistry callbackRegistry,
+                   final int priority) {
+        return Observable.create(new ObservableOnSubscribe<Pair<PUBLISH, ClientData>>() {
+            @Override
+            public void subscribe(@NonNull final ObservableEmitter<Pair<PUBLISH, ClientData>> emitter) throws Exception {
+                final OnPublishReceivedCallback callback = new OnPublishReceivedCallback() {
+                    @Override
+                    public void onPublishReceived(@NonNull final PUBLISH publish,
+                                           @NonNull final ClientData clientData)
+                            throws OnPublishReceivedException {
+                        if (!emitter.isDisposed()) {
+                            emitter.onNext(new Pair(publish, clientData));
+                        }
+                    }
+
+                    @Override
+                    public int priority() {
+                        return priority;
+                    }
+                };
+
+                emitter.setCancellable(new Cancellable() {
+                    @Override
+                    public void cancel() throws Exception {
+                        callbackRegistry.removeCallback(callback);
+                    }
+                });
+
+                callbackRegistry.addCallback(callback);
+            }
+        });
+    }
+    @NonNull
+    @CheckReturnValue
+    public static Observable<Pair<CONNECT, ClientData>>
+            clientConnects(@NonNull final CallbackRegistry callbackRegistry,
+                           final int priority) {
+        return Observable.create(new ObservableOnSubscribe<Pair<CONNECT, ClientData>>() {
+            @Override
+            public void subscribe(@NonNull final ObservableEmitter<Pair<CONNECT, ClientData>> emitter) throws Exception {
+                final OnConnectCallback callback = new OnConnectCallback() {
+                    @Override
+                    public void onConnect(@NonNull final CONNECT connect,
+                                          @NonNull final ClientData clientData) throws RefusedConnectionException {
+                        if (!emitter.isDisposed()) {
+                            emitter.onNext(new Pair(connect, clientData));
+                        }
+                    }
+
+                    @Override
+                    public int priority() {
+                        return priority;
+                    }
+                };
+
+                emitter.setCancellable(new Cancellable() {
+                    @Override
+                    public void cancel() throws Exception {
+                        callbackRegistry.removeCallback(callback);
+                    }
+                });
+
+                callbackRegistry.addCallback(callback);
+            }
+        });
+    }
+
+    /*
+    ScheduledCallback {
+        @Override
+        public void execute() {
+        }
+
+        @Override
+        public String cronExpression() {
+            //return "0/5 * * * * ?";
+        }
+    }
+    */
 }

@@ -20,9 +20,13 @@ import com.acme.callbacks.*;
 import com.acme.callbacks.advanced.*;
 import com.acme.configuration.MyConfiguration;
 import com.hivemq.spi.PluginEntryPoint;
+import com.hivemq.spi.callback.CallbackPriority;
 import com.hivemq.spi.callback.registry.CallbackRegistry;
+import com.hivemq.spi.message.CONNECT;
+import com.hivemq.spi.message.PUBLISH;
 import com.hivemq.spi.message.QoS;
 import com.hivemq.spi.message.RetainedMessage;
+import com.hivemq.spi.security.ClientData;
 import com.hivemq.spi.services.BlockingRetainedMessageStore;
 import com.hivemq.spi.services.RetainedMessageStore;
 import org.slf4j.Logger;
@@ -30,6 +34,11 @@ import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+
+import io.reactivex.annotations.NonNull;
+import io.reactivex.functions.Action;
+import io.reactivex.functions.Consumer;
+import rx.hivemq.RxHiveMQ;
 
 /**
  * This is the main class of the plugin, which is instanciated during the HiveMQ start up process.
@@ -41,11 +50,13 @@ public class HelloWorldMainClass extends PluginEntryPoint {
     Logger log = LoggerFactory.getLogger(HelloWorldMainClass.class);
 
     private final BlockingRetainedMessageStore retainedMessageStore;
+    private final MyConfiguration myConfiguration;
 
     @Inject
     public HelloWorldMainClass(final BlockingRetainedMessageStore retainedMessageStore,
                                final MyConfiguration myConfiguration) {
         this.retainedMessageStore = retainedMessageStore;
+        this.myConfiguration = myConfiguration;
     }
 
     /**
@@ -55,15 +66,33 @@ public class HelloWorldMainClass extends PluginEntryPoint {
     @PostConstruct
     public void postConstruct() {
 
-        CallbackRegistry callbackRegistry = getCallbackRegistry();
-        callbackRegistry.addCallback(hiveMQStart);
-        callbackRegistry.addCallback(clientConnect);
-        callbackRegistry.addCallback(clientDisconnect);
+        final CallbackRegistry callbackRegistry = getCallbackRegistry();
+
+        RxHiveMQ.brokerStarts(callbackRegistry, CallbackPriority.MEDIUM).subscribe(new Action() {
+            @Override
+            public void run() throws Exception {
+                log.info("Property from property file is: " + myConfiguration.getMyProperty());
+            }
+        });
+        RxHiveMQ.clientConnects(callbackRegistry, CallbackPriority.MEDIUM).subscribe(new Consumer<RxHiveMQ.Pair<CONNECT, ClientData>>() {
+            @Override
+            public void accept(@NonNull RxHiveMQ.Pair<CONNECT, ClientData> connectClientDataPair) throws Exception {
+                log.info("Client {} is connecting", connectClientDataPair.right.getClientId());
+            }
+        });
+        RxHiveMQ.publishReceiveds(callbackRegistry, CallbackPriority.MEDIUM).subscribe(new Consumer<RxHiveMQ.Pair<PUBLISH, ClientData>>() {
+            @Override
+            public void accept(@NonNull RxHiveMQ.Pair<PUBLISH, ClientData> connectClientDataPair) throws Exception {
+                log.info("Client {} is connecting", connectClientDataPair.right.getClientId());
+            }
+        });
+        /*
         callbackRegistry.addCallback(publishReceived);
         callbackRegistry.addCallback(simpleScheduledCallback);
         callbackRegistry.addCallback(scheduledClearRetainedCallback);
         callbackRegistry.addCallback(addSubscriptionOnClientConnect);
         callbackRegistry.addCallback(sendListOfAllClientsOnPublish);
+        */
 
         addRetainedMessage("/default", "Hello World.");
     }
