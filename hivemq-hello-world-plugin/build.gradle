@@ -30,6 +30,7 @@ dependencies {
     compile 'com.hivemq:hivemq-spi:3.1.0'
     compile 'com.google.guava:guava:22.0'
     compile 'org.slf4j:slf4j-log4j12:+'
+    compile  'net.javacrumbs.future-converter:future-converter-guava-rxjava2:1.1.0'
     //compile 'ch.qos.logback:logback-classic:+'
     //compile 'ch.qos.logback:logback-core:+'
     //compile 'javax.ws.rs:javax.ws.rs-api:+'

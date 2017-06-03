@@ -36,6 +36,9 @@ import com.hivemq.spi.security.ClientData;
 import com.hivemq.spi.services.AsyncSubscriptionStore;
 import com.hivemq.spi.services.BlockingRetainedMessageStore;
 import com.hivemq.spi.services.RetainedMessageStore;
+
+import net.javacrumbs.futureconverter.guavarx2.FutureConverter;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +47,13 @@ import java.util.Set;
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 
+import io.reactivex.ObservableSource;
+import io.reactivex.Single;
+import io.reactivex.SingleSource;
 import io.reactivex.annotations.NonNull;
 import io.reactivex.functions.Action;
 import io.reactivex.functions.Consumer;
+import io.reactivex.functions.Function;
 import rx.hivemq.RxHiveMQ;
 
 /**
@@ -128,40 +135,45 @@ public class HelloWorldMainClass extends PluginEntryPoint {
                 log.info("Scheduled Callback is doing maintenance!");
             }
         });
-        RxHiveMQ.clientConnects(callbackRegistry, CallbackPriority.MEDIUM).subscribe(
-                new Consumer<RxHiveMQ.Pair<CONNECT, ClientData>>() {
+        RxHiveMQ.clientConnects(callbackRegistry, CallbackPriority.MEDIUM)
+                .flatMapSingle(new Function<RxHiveMQ.Pair<CONNECT, ClientData>, SingleSource<RxHiveMQ.Pair<String, String>>>() {
                     @Override
-                    public void accept(@NonNull final RxHiveMQ.Pair<CONNECT, ClientData> pair)
-                            throws Exception {
+                    public SingleSource<RxHiveMQ.Pair<String, String>> apply(@NonNull RxHiveMQ.Pair<CONNECT, ClientData> pair) throws Exception {
                         final String clientId = pair.right.getClientId();
 
                         log.info("Client {} is connecting", clientId);
 
                         // Adding a subscription without automatically for the client
-                        addClientToTopic(clientId, "devices/" + clientId + "/sensor");
+                        return addClientToTopic(clientId, "devices/" + clientId + "/sensor");
                     }
 
                     /**
                      * Add a Subscription for a certain client
                      */
-                    private void addClientToTopic(final String clientId, final String topic) {
+                    private Single<RxHiveMQ.Pair<String, String>> addClientToTopic(
+                            @NonNull final String clientId,
+                            @NonNull final String topic) {
                         //The AsyncSubscriptionStore returns a ListenableFuture object
-                        final ListenableFuture<Void> adSubscriptionFuture =
-                                subscriptionStore.addSubscription(clientId,
-                                        new Topic(topic, QoS.valueOf(0)));
-
-                        //Register callbacks, one for success and one for failure
-                        Futures.addCallback(adSubscriptionFuture, new FutureCallback<Void>() {
-                            @Override
-                            public void onSuccess(Void result) {
-                                log.info("Added subscription to {} for client {}", topic, clientId);
-                            }
-
-                            @Override
-                            public void onFailure(Throwable t) {
-                                log.error("Failed to add subscription to {} for client {} because of {}", topic, clientId, t.getCause());
-                            }
-                        });
+                        return FutureConverter.toSingle(subscriptionStore.addSubscription(clientId,
+                                        new Topic(topic, QoS.valueOf(0))))
+                                .map(new Function<Void, RxHiveMQ.Pair<String, String>>() {
+                                    @Override
+                                    public RxHiveMQ.Pair<String, String> apply(@NonNull Void v) throws Exception {
+                                        return new RxHiveMQ.Pair<String, String>(clientId, topic);
+                                    }
+                                });
+                    }
+                })
+                .subscribe(new Consumer<RxHiveMQ.Pair<String, String>>() {
+                    @Override
+                    public void accept(@NonNull final RxHiveMQ.Pair<String, String> pair)
+                            throws Exception {
+                        log.info("Added subscription to {} for client {}", pair.left, pair.right);
+                    }
+                }, new Consumer<Throwable>() {
+                    @Override
+                    public void accept(@NonNull Throwable e) throws Exception {
+                        log.error("Failed to add subscription because of {}", e.getCause());
                     }
                 });
         RxHiveMQ.publishReceiveds(callbackRegistry, CallbackPriority.MEDIUM)
