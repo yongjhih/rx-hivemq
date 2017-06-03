@@ -16,7 +16,7 @@
 
 package com.acme.callbacks;
 
-import com.acme.configuration.Configuration;
+import com.acme.configuration.MyConfiguration;
 import com.google.inject.Inject;
 import com.hivemq.spi.callback.CallbackPriority;
 import com.hivemq.spi.callback.events.broker.OnBrokerStart;
@@ -32,12 +32,12 @@ import org.slf4j.LoggerFactory;
  */
 public class HiveMQStart implements OnBrokerStart {
 
-    private final Configuration pluginConfiguration;
+    private final MyConfiguration pluginMyConfiguration;
     Logger log = LoggerFactory.getLogger(HiveMQStart.class);
 
     @Inject
-    public HiveMQStart(Configuration pluginConfiguration) {
-        this.pluginConfiguration = pluginConfiguration;
+    public HiveMQStart(MyConfiguration pluginMyConfiguration) {
+        this.pluginMyConfiguration = pluginMyConfiguration;
     }
 
     /**
@@ -50,7 +50,7 @@ public class HiveMQStart implements OnBrokerStart {
     @Override
     public void onBrokerStart() throws BrokerUnableToStartException {
         log.info("HiveMQ is starting");
-        log.info("Property from property file is: " + pluginConfiguration.getMyProperty());
+        log.info("Property from property file is: " + pluginMyConfiguration.getMyProperty());
     }
 
 

@@ -18,40 +18,87 @@ package rx.hivemq;
 
 import com.hivemq.spi.callback.*;
 import com.hivemq.spi.callback.events.*;
+import com.hivemq.spi.callback.events.broker.OnBrokerStart;
 import com.hivemq.spi.callback.exception.*;
+import com.hivemq.spi.callback.registry.CallbackRegistry;
 import com.hivemq.spi.message.CONNECT;
 import com.hivemq.spi.security.ClientData;
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
 
+import io.reactivex.Completable;
+import io.reactivex.CompletableEmitter;
+import io.reactivex.CompletableOnSubscribe;
+import io.reactivex.Single;
+import io.reactivex.annotations.CheckReturnValue;
+import io.reactivex.annotations.NonNull;
+import io.reactivex.functions.Cancellable;
+
+/**
+ * OnBrokerStart
+ * OnBrokerStop
+ * OnConnectCallback
+ * OnDisconnectCallback
+ * OnPublishReceivedCallback
+ * OnPublishSendCallback
+ * OnSubscribeCallback
+ * OnTopicSubscription
+ * OnUnsubscribeCallback
+ * OnConnackSend
+ * OnPingCallback
+ * OnPubackReceived
+ * OnPubackSend
+ * OnPubcompReceived
+ * OnPubcompSend
+ * OnPubrecReceived
+ * OnPubrecSend
+ * OnPubrelReceived
+ * OnPubrelSend
+ * OnSubackSend
+ * OnUnsubackSend
+ * AfterLoginCallback
+ * OnAuthenticationCallback
+ * OnAuthorizationCallback
+ * OnInsufficientPermissionDisconnect
+ * RestrictionsAfterLoginCallback
+ * ClusterDiscoveryCallback
+ * ScheduledCallback
+ * OnBrokerStart
+ */
 public class RxHiveMQ {
-    OnBrokerStart
-            OnBrokerStop
-    OnConnectCallback
-            OnDisconnectCallback
-    OnPublishReceivedCallback
-            OnPublishSendCallback
-    OnSubscribeCallback
-            OnTopicSubscription
-    OnUnsubscribeCallback
-            OnConnackSend
-    OnPingCallback
-            OnPubackReceived
-    OnPubackSend
-            OnPubcompReceived
-    OnPubcompSend
-            OnPubrecReceived
-    OnPubrecSend
-            OnPubrelReceived
-    OnPubrelSend
-            OnSubackSend
-    OnUnsubackSend
-            AfterLoginCallback
-    OnAuthenticationCallback
-            OnAuthorizationCallback
-    OnInsufficientPermissionDisconnect
-            RestrictionsAfterLoginCallback
-    ClusterDiscoveryCallback
-            ScheduledCallback
-    OnBrokerStart
+    @NonNull
+    @CheckReturnValue
+    public static Completable brokerStarts(final CallbackRegistry callbackRegistry) {
+        return brokerStarts(callbackRegistry, CallbackPriority.MEDIUM);
+    }
+
+    @NonNull
+    @CheckReturnValue
+    public static Completable brokerStarts(final CallbackRegistry callbackRegistry, final int priority) {
+        return Completable.create(new CompletableOnSubscribe() {
+            @Override
+            public void subscribe(@NonNull final CompletableEmitter emitter) throws Exception {
+                final OnBrokerStart callback = new OnBrokerStart() {
+                    @Override
+                    public void onBrokerStart() throws BrokerUnableToStartException {
+                        if (!emitter.isDisposed()) {
+                            emitter.onComplete();
+                        }
+                    }
+
+                    @Override
+                    public int priority() {
+                        return priority;
+                    }
+                };
+
+                emitter.setCancellable(new Cancellable() {
+                    @Override
+                    public void cancel() throws Exception {
+                        callbackRegistry.removeCallback(callback);
+                    }
+                });
+
+                callbackRegistry.addCallback(callback);
+            }
+        });
+    }
 }

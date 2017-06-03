@@ -23,13 +23,13 @@ import java.util.Properties;
 /**
  * @author Christian Götz
  */
-public class Configuration {
+public class MyConfiguration {
 
 
     private final Properties properties;
 
     @Inject
-    public Configuration(PluginReader pluginReader) {
+    public MyConfiguration(PluginReader pluginReader) {
         properties = pluginReader.getProperties();
     }
 

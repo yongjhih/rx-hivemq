@@ -18,6 +18,7 @@ package com.acme.plugin;
 
 import com.acme.callbacks.*;
 import com.acme.callbacks.advanced.*;
+import com.acme.configuration.MyConfiguration;
 import com.hivemq.spi.PluginEntryPoint;
 import com.hivemq.spi.callback.registry.CallbackRegistry;
 import com.hivemq.spi.message.QoS;
@@ -41,34 +42,10 @@ public class HelloWorldMainClass extends PluginEntryPoint {
 
     private final BlockingRetainedMessageStore retainedMessageStore;
 
-    private final ClientConnect clientConnect;
-    private final ClientDisconnect clientDisconnect;
-    private final PublishReceived publishReceived;
-    private final SimpleScheduledCallback simpleScheduledCallback;
-    private final ScheduledClearRetainedCallback scheduledClearRetainedCallback;
-    private final AddSubscriptionOnClientConnect addSubscriptionOnClientConnect;
-    private final SendListOfAllClientsOnPublish sendListOfAllClientsOnPublish;
-    private final HiveMQStart hiveMQStart;
-
     @Inject
     public HelloWorldMainClass(final BlockingRetainedMessageStore retainedMessageStore,
-                               final ClientConnect clientConnect,
-                               final ClientDisconnect clientDisconnect,
-                               final PublishReceived publishReceived,
-                               final SimpleScheduledCallback simpleScheduledCallback,
-                               final ScheduledClearRetainedCallback scheduledClearRetainedCallback,
-                               final AddSubscriptionOnClientConnect addSubscriptionOnClientConnect,
-                               final SendListOfAllClientsOnPublish sendListOfAllClientsOnPublish,
-                               final HiveMQStart hiveMQStart){
+                               final MyConfiguration myConfiguration) {
         this.retainedMessageStore = retainedMessageStore;
-        this.clientConnect = clientConnect;
-        this.clientDisconnect = clientDisconnect;
-        this.publishReceived = publishReceived;
-        this.simpleScheduledCallback = simpleScheduledCallback;
-        this.scheduledClearRetainedCallback = scheduledClearRetainedCallback;
-        this.addSubscriptionOnClientConnect = addSubscriptionOnClientConnect;
-        this.sendListOfAllClientsOnPublish = sendListOfAllClientsOnPublish;
-        this.hiveMQStart = hiveMQStart;
     }
 
     /**
