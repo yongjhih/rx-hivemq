@@ -1,5 +1,10 @@
 # RxHiveMQ
 
+[![JitPack](https://img.shields.io/github/tag/yongjhih/rx-hivemq.svg?label=JitPack)](https://jitpack.io/#yongjhih/rx-hivemq)
+[![javadoc](https://img.shields.io/github/tag/yongjhih/rx-hivemq.svg?label=javadoc)](https://jitpack.io/com/github/yongjhih/rx-hivemq/rx-hivemq/-SNAPSHOT/javadoc/)
+[![CircleCI](https://circleci.com/gh/yongjhih/rx-hivemq.svg?style=svg)](https://circleci.com/gh/yongjhih/rx-hivemq)
+[![codecov](https://codecov.io/gh/yongjhih/rx-hivemq/branch/master/graph/badge.svg)](https://codecov.io/gh/yongjhih/rx-hivemq)
+
 ## Usage
 
 ```kt
