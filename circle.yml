@@ -1,0 +1,18 @@
+machine:
+    environment:
+        JAVA6_HOME: /usr/lib/jvm/java-6-openjdk-amd64
+        GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx1536m -XX:+HeapDumpOnOutOfMemoryError"'
+        JAVA_OPTS: "-Xms518m -Xmx1024m"
+
+    java:
+        version: openjdk8
+
+test:
+    override:
+        - ./gradlew assemble
+        - cp -r rx-hivemq/build/libs $CIRCLE_ARTIFACTS
+    post:
+        - ./gradlew jacocoTestReport
+        - bash <(curl -s https://codecov.io/bash)
+        - mkdir -p $CIRCLE_TEST_REPORTS/junit/
+        - find . -type f -regex ".*/build/test-results/.*xml" -exec cp {} $CIRCLE_TEST_REPORTS/junit/ \;
